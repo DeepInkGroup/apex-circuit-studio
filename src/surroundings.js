@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import ClipperLib from 'clipper-lib';
 
 export function createSurroundings(group) {
   const materials={};
@@ -7,11 +8,24 @@ export function createSurroundings(group) {
   const box=(w,h,d,x,y,z,c,parent)=>add(new THREE.BoxGeometry(w,h,d),c,x,y,z,parent);
   let seed=51;function rand(){seed=(seed*16807)%2147483647;return(seed-1)/2147483646;}
   function clear(){group.traverse(o=>o.geometry?.dispose());group.clear();}
-  return function rebuild({samples,width,trees=true,facilities=true,barriers=true,biome='park'}){
+  return function rebuild({samples,width,outerPaths=[],density=105,trees=true,facilities=true,barriers=true,biome='park'}){
     clear();seed=51;
     function distance(x,z){let d=Infinity;for(let i=0;i<samples.length;i+=3)d=Math.min(d,Math.hypot(samples[i].x-x,samples[i].z-z));return d;}
-    function free(x,z,r){return distance(x,z)>width/2+r;}
-    if(trees)for(let i=0;i<105;i++){const x=-118+rand()*236,z=-92+rand()*180,size=.6+rand()*.6;if(!free(x,z,8)||z>56&&Math.abs(x)<52)continue;
+    function free(x,z,r){
+      if(distance(x,z)<width/2+r)return false;
+      const point={X:Math.round(x*1000),Y:Math.round(z*1000)};
+      let winding=0,nearest=Infinity;
+      for(const path of outerPaths){
+        if(ClipperLib.Clipper.PointInPolygon(point,path)!==0)winding+=Math.sign(ClipperLib.Clipper.Area(path));
+        for(let i=0;i<path.length;i++){
+          const a=path[i],b=path[(i+1)%path.length],dx=b.X-a.X,dz=b.Y-a.Y,den=dx*dx+dz*dz;
+          const t=den?Math.max(0,Math.min(1,((point.X-a.X)*dx+(point.Y-a.Y)*dz)/den)):0;
+          nearest=Math.min(nearest,Math.hypot(point.X-a.X-dx*t,point.Y-a.Y-dz*t)/1000);
+        }
+      }
+      return winding===0&&nearest>r;
+    }
+    if(trees)for(let i=0;i<density;i++){const x=-118+rand()*236,z=-92+rand()*180,size=.6+rand()*.6;if(!free(x,z,8)||z>56&&Math.abs(x)<52)continue;
       add(new THREE.CylinderGeometry(.22,.42,3.8,7),'#786650',x,1.9,z);
       if(biome==='forest'){for(let j=0;j<3;j++)add(new THREE.ConeGeometry((3.8-j*.7)*size,5*size,8),['#3c644d','#4a7554','#5c865c'][j],x,4+j*1.7,z);}
       else{for(let j=0;j<3;j++){const crown=add(new THREE.IcosahedronGeometry((3.1-j*.3)*size,1),['#5b7950','#78915b','#8fa76a'][j],x+(j-1)*1.2,4+j*1.2,z);crown.scale.y=.85;}}
