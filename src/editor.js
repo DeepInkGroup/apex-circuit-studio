@@ -1,4 +1,5 @@
 import './editor.css';
+import {siteBounds,clampToSite} from './site.js';
 
 const NS='http://www.w3.org/2000/svg';
 export function createEditor({host,getState,onChange,onMode}) {
@@ -16,11 +17,12 @@ export function createEditor({host,getState,onChange,onMode}) {
   function redo(){if(!future.length)return;history.push(snapshot());commit(future.pop());}
   panel.querySelector('#historyUndo').onclick=undo;panel.querySelector('#historyRedo').onclick=redo;
   function screenPoint(e){const p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;const q=p.matrixTransform(svg.getScreenCTM().inverse());return [q.x,q.y];}
-  const clamp=p=>[Math.max(-105,Math.min(105,p[0])),Math.max(-78,Math.min(45,p[1]))];
+  const clamp=p=>clampToSite(p,getState().siteScale);
   function applyView(){svg.setAttribute('viewBox',view.join(' '));}
-  function zoom(factor,center=[view[0]+view[2]/2,view[1]+view[3]/2]){const w=Math.max(45,Math.min(800,view[2]*factor)),f=w/view[2];view=[center[0]+(view[0]-center[0])*f,center[1]+(view[1]-center[1])*f,w,view[3]*f];applyView();}
-  function fit(){const s=getState();if(!s.points.length)view=[-140,-105,280,210];else{const ps=s.samples.length?s.samples:s.points.map(p=>({x:p[0],z:p[1]}));const xs=ps.map(p=>p.x),ys=ps.map(p=>p.z),pad=s.width+12;const minX=Math.min(...xs)-pad,maxX=Math.max(...xs)+pad,minY=Math.min(...ys)-pad,maxY=Math.max(...ys)+pad;view=[minX,minY,maxX-minX,maxY-minY];}applyView();}
-  function render(){const s=getState(),ps=s.samples;const path=ps.length?ps.map((p,i)=>`${i?'L':'M'}${p.x.toFixed(3)} ${p.z.toFixed(3)}`).join(' ')+(s.closed?' Z':''):'';drawing.replaceChildren();
+  function zoom(factor,center=[view[0]+view[2]/2,view[1]+view[3]/2]){const w=Math.max(45,Math.min(850*getState().siteScale,view[2]*factor)),f=w/view[2];view=[center[0]+(view[0]-center[0])*f,center[1]+(view[1]-center[1])*f,w,view[3]*f];applyView();}
+  function fitSite(){const scale=getState().siteScale||1;view=[-140*scale,-105*scale,280*scale,210*scale];applyView();}
+  function fit(){const s=getState();if(!s.points.length)fitSite();else{const ps=s.samples.length?s.samples:s.points.map(p=>({x:p[0],z:p[1]}));const xs=ps.map(p=>p.x),ys=ps.map(p=>p.z),pad=s.width+12;const minX=Math.min(...xs)-pad,maxX=Math.max(...xs)+pad,minY=Math.min(...ys)-pad,maxY=Math.max(...ys)+pad;view=[minX,minY,maxX-minX,maxY-minY];applyView();}}
+  function render(){const s=getState(),ps=s.samples,bounds=siteBounds(s.siteScale);const boundary=panel.querySelector('.site-boundary');boundary.setAttribute('x',bounds.minX);boundary.setAttribute('y',bounds.minZ);boundary.setAttribute('width',bounds.maxX-bounds.minX);boundary.setAttribute('height',bounds.maxZ-bounds.minZ);const path=ps.length?ps.map((p,i)=>`${i?'L':'M'}${p.x.toFixed(3)} ${p.z.toFixed(3)}`).join(' ')+(s.closed?' Z':''):'';drawing.replaceChildren();
     function el(tag,attrs){const n=document.createElementNS(NS,tag);Object.entries(attrs).forEach(([k,v])=>n.setAttribute(k,v));drawing.append(n);return n;}
     if(path){el('path',{d:path,fill:'none',stroke:mode==='outline'?'#202d26':'#d2d9c9','stroke-width':s.width+(mode==='outline'?0:2),'stroke-linejoin':'round','stroke-linecap':'round'});if(mode!=='outline'){el('path',{d:path,fill:'none',stroke:'#566452','stroke-width':s.width,'stroke-linejoin':'round','stroke-linecap':'round'});el('path',{d:path,fill:'none',stroke:'#edf1e6','stroke-width':.25,'stroke-dasharray':'2 2'});}}
     if(mode==='2d')s.points.forEach((p,i)=>{el('circle',{cx:p[0],cy:p[1],r:1.65,fill:i===selected?'#2d4533':i===0?'#fff8ed':'#ed7447',stroke:i===0?'#e87547':'#fff','stroke-width':.45,'data-index':i});const label=el('text',{x:p[0]+2.6,y:p[1]-2.6,fill:'#5d7055','font-size':2.8,'font-family':'Arial','pointer-events':'none'});label.textContent=i===0?'START':String(i+1);});
@@ -38,5 +40,5 @@ export function createEditor({host,getState,onChange,onMode}) {
   document.querySelector('#closeTrack').onclick=()=>{const s=snapshot();if(s.points.length<3)return;remember();s.closed=true;commit(s);setTool('move');};
   document.querySelector('#clearTrack').onclick=()=>{remember();commit({points:[],closed:false});setTool('draw');fit();onMode('2d');};
   applyView();
-  return {render,undo,zoom,fit,resetHistory(){history=[];future=[];selected=-1;setTool('draw');},setMode(m){mode=m;panel.classList.toggle('hidden',m==='3d');panel.classList.toggle('outline-mode',m==='outline');render();},export(){const s=getState();if(!s.points.length)return;const clone=svg.cloneNode(true);clone.querySelector('.grid-field').remove();clone.querySelector('.site-boundary').remove();clone.querySelectorAll('circle,text').forEach(n=>n.remove());clone.setAttribute('xmlns',NS);const url=URL.createObjectURL(new Blob([clone.outerHTML],{type:'image/svg+xml'}));const a=document.createElement('a');a.href=url;a.download='circuit.svg';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}};
+  return {render,undo,zoom,fit,fitSite,resetHistory(){history=[];future=[];selected=-1;setTool('draw');},setMode(m){mode=m;panel.classList.toggle('hidden',m==='3d');panel.classList.toggle('outline-mode',m==='outline');render();},export(){const s=getState();if(!s.points.length)return;const clone=svg.cloneNode(true);clone.querySelector('.grid-field').remove();clone.querySelector('.site-boundary').remove();clone.querySelectorAll('circle,text').forEach(n=>n.remove());clone.setAttribute('xmlns',NS);const url=URL.createObjectURL(new Blob([clone.outerHTML],{type:'image/svg+xml'}));const a=document.createElement('a');a.href=url;a.download='circuit.svg';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}};
 }

@@ -26,10 +26,23 @@ try {
  await page.screenshot({path:'studio-outline.png',fullPage:true});
  await page.locator('#view3d').click();await page.locator('#geometryDebug').check();await expect(page.locator('#geometryLegend')).toBeVisible();await expect(page.locator('#geometryStatus')).not.toBeEmpty();await page.screenshot({path:'studio-geometry-debug.png',fullPage:true});await page.locator('#geometryDebug').uncheck();await page.waitForTimeout(500);await page.screenshot({path:'studio-desktop.png',fullPage:true});
  await page.locator('#drive').click();await page.keyboard.down('w');await page.waitForTimeout(1500);await page.keyboard.up('w');assert.ok(Number(await page.locator('#speed').textContent())>10);
+ await page.screenshot({path:'studio-kart.png',fullPage:true});
  await page.locator('#respawn').click();await expect(page.locator('#speed')).toHaveText('0');await page.locator('#drive').click();
  await page.reload();await expect(page.locator('#drive')).toBeDisabled();await page.locator('#circuitsNav').click();await page.locator('.saved-item').click();await expect(page.locator('#corners')).toHaveText('7');await expect(page.locator('#smoothness')).toHaveValue('0.7');await expect(page.locator('#curbWidth')).toHaveValue('1.3');await expect(page.locator('#runoffWidth')).toHaveValue('2.2');await expect(page.locator('#miterLimit')).toHaveValue('1.5');await expect(page.locator('#sceneryDensity')).toHaveValue('150');await expect(page.locator('#biome')).toHaveValue('forest');await expect(page.locator('#facilitiesOption')).not.toBeChecked();
  await page.locator('#clearTrack').click();await expect(page.locator('#corners')).toHaveText('0');await expect(page.locator('#drive')).toBeDisabled();await page.locator('#historyUndo').click();await expect(page.locator('#corners')).toHaveText('7');
+ await page.locator('#clearTrack').click();await page.locator('#siteScale').selectOption('3');
+ await expect(page.locator('.site-boundary')).toHaveAttribute('width','630');
+ for(const p of [[-250,-140],[250,-140],[250,90],[-250,90]])await click(...p);
+ await page.locator('#closeTrack').click();assert.ok(Number(await page.locator('#length').textContent())>1000);
+ await page.screenshot({path:'studio-grand.png',fullPage:true});
+ await page.locator('#trackName').fill('Grand test circuit');await page.locator('#save').click();
+ await page.reload();await page.locator('#circuitsNav').click();await expect(page.locator('.saved-row')).toHaveCount(2);
+ await page.locator('.saved-row').filter({hasText:'Grand test circuit'}).locator('.saved-item').click();
+ await expect(page.locator('#siteScale')).toHaveValue('3');await expect(page.locator('.site-boundary')).toHaveAttribute('width','630');
+ await page.locator('#circuitsNav').click();page.once('dialog',dialog=>dialog.accept());await page.getByRole('button',{name:'Delete Grand test circuit'}).click();
+ await expect(page.locator('.saved-row')).toHaveCount(1);await expect(page.locator('#saveCount')).toHaveText('1');
+ await page.reload();await page.locator('#circuitsNav').click();await expect(page.locator('.saved-row')).toHaveCount(1);await page.locator('#closeDialog').click();
  await page.screenshot({path:'studio-editor.png',fullPage:true});
  await page.setViewportSize({width:390,height:844});await page.screenshot({path:'studio-mobile.png',fullPage:true});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth),false);
- assert.deepEqual(errors,[]);console.log('PASS: blank start, drawing, closing, moving, insert/delete, undo/redo, SVG export, 3D, driving, persistence, clearing, and mobile layout.');
+ assert.deepEqual(errors,[]);console.log('PASS: drawing, editing, kart drive, grand circuit, persistence, saved-circuit deletion, and mobile layout.');
 } finally {await browser.close();}
