@@ -2,6 +2,8 @@
 
 A 3D kart track designer built with Vite and Three.js.
 
+**Live site:** https://deepinkgroup.github.io/apex-circuit-studio/
+
 ## Run
 
 ```sh
@@ -18,6 +20,7 @@ Open the local URL printed by Vite. Build for production with `npm run build`.
 - Scroll to zoom; hold Space and drag to pan. The grid spacing is 5 meters. The dashed boundary shows the buildable area.
 - Switch between 2D editor, 3D world, and Circuit only. The latter provides a plain silhouette and SVG export.
 - Adjust width, curbs, daylight, parkland or woodland surroundings, trees, paddock facilities, and barriers. Scenery is regenerated with clearance from the custom road.
+- Adjust Corner flow to make turns more precise or sweeping. Raised red and cream curbs follow each bend.
 - Save circuits in the current browser and load them from My circuits.
 - Test drive with WASD or arrow keys. R resets the kart; Escape exits. Touch controls are provided on touch devices.
 - Off-track grass slows the kart. Complete a forward circuit for a timed lap.
